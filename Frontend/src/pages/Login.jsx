@@ -1,0 +1,74 @@
+// src/pages/Login.jsx
+import React, { useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
+export default function Login({ onAuth }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const nav = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const api = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const res = await axios.post(`${api}/api/auth/login`, { email, password });
+
+      const token = res?.data?.token;
+      const user = res?.data?.user;
+
+      if (!token) {
+        alert("Login failed: no token returned");
+        console.warn("Login response:", res.data);
+        return;
+      }
+
+      localStorage.setItem("token", token);
+      if (user) localStorage.setItem("user", JSON.stringify(user));
+
+      if (onAuth) onAuth(user);
+
+      nav("/");
+    } catch (err) {
+      console.error("Login error", err?.response?.data || err.message);
+      alert(err?.response?.data?.msg || "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto mt-10">
+      {/* force dark text inside white card so it works in dark mode */}
+      <div className="bg-white p-6 rounded-xl shadow text-slate-900">
+        <h2 className="text-2xl font-bold mb-1">Login</h2>
+        <p className="text-sm text-slate-500 mb-4">Welcome back</p>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="w-full p-3 border rounded text-slate-900 placeholder:text-slate-400"
+          />
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            type="password"
+            placeholder="Password"
+            className="w-full p-3 border rounded text-slate-900 placeholder:text-slate-400"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-sky-600 text-white p-3 rounded"
+          >
+            {loading ? "Logging in..." : "Login"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}

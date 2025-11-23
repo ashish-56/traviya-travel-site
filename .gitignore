@@ -1,0 +1,19 @@
+# Node
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist
+build
+
+# Env files (DON'T upload secrets)
+.env
+.env.local
+.env.production
+.env.development
+
+# Logs
+logs
+*.log
