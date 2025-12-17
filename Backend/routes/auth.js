@@ -4,6 +4,15 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.js');
 
+// Helper functions
+const generateAccessToken = (user) => {
+  return jwt.sign({ id: user._id }, process.env.ACCESS_SECRET, { expiresIn: '15m' });
+};
+
+const generateRefreshToken = (user) => {
+  return jwt.sign({ id: user._id }, process.env.REFRESH_SECRET, { expiresIn: '7d' });
+};
+
 
 // POST /api/auth/signup
 router.post('/signup', async (req, res) => {
@@ -24,11 +33,27 @@ user = new User({ name, email, password: hashed });
 await user.save();
 
 
-const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
-} catch (err) {
-console.error(err); res.status(500).json({ msg: 'Server error' });
-}
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    // Save refresh token in DB
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    // Send refresh token in HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.json({ accessToken, user: { id: user._id, name: user.name, email: user.email } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+
 });
 
 
@@ -47,12 +72,47 @@ const isMatch = await bcrypt.compare(password, user.password);
 if (!isMatch) return res.status(400).json({ msg: 'Invalid credentials' });
 
 
-const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
-} catch (err) {
-console.error(err); res.status(500).json({ msg: 'Server error' });
-}
+   // Save refresh token in DB
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    // Send refresh token in HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.json({ accessToken, user: { id: user._id, name: user.name, email: user.email } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: 'Server error' });
+  }
 });
 
+// REFRESH
+router.post('/refresh', async (req, res) => {
+  const refreshToken = req.cookies.refreshToken;
+  if (!refreshToken) return res.status(401).json({ msg: 'No refresh token' });
+
+  try {
+    // Verify token
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
+
+    // Check DB
+    const user = await User.findById(decoded.id);
+    if (!user || user.refreshToken !== refreshToken) {
+      return res.status(403).json({ msg: 'Invalid refresh token' });s
+    }
+
+    // Issue new access token
+    const newAccessToken = generateAccessToken(user);
+    res.json({ accessToken: newAccessToken });
+  } catch (err) {
+    console.error(err);
+    res.status(403).json({ msg: 'Invalid refresh token' });
+  }
+});
 
 module.exports = router;
