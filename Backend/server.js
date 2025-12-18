@@ -8,9 +8,21 @@ const app = express();
 const cookieParser = require("cookie-parser");
 
 app.use(cookieParser());
+const allowedOrigins = [
+  "http://localhost:5173", // local dev
+  "https://traviya-travel-site.vercel.app", // production (Vercel)
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // allow server-to-server
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );

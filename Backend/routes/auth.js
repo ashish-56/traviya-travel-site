@@ -43,9 +43,9 @@ router.post("/signup", async (req, res) => {
     // Send refresh token in HTTP-only cookie
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      secure: true, // ✅ REQUIRED on HTTPS (Render + Vercel)
+      sameSite: "none", // ✅ REQUIRED for cross-site cookies
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.json({
@@ -80,8 +80,8 @@ router.post("/login", async (req, res) => {
     // Send refresh token in HTTP-only cookie
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false,
-      sameSite: "strict",
+      secure: true, // ✅ REQUIRED on HTTPS (Render + Vercel)
+      sameSite: "none", // ✅ REQUIRED for cross-site cookies
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
